@@ -4,12 +4,14 @@ import com.tcp.cleanmanagement.dto.SensorDataRequest;
 import com.tcp.cleanmanagement.entity.Sensor;
 import com.tcp.cleanmanagement.entity.SensorDataRaw;
 import com.tcp.cleanmanagement.entity.SensorMetric;
+import com.tcp.cleanmanagement.entity.DeviceSetHistory;
 import com.tcp.cleanmanagement.enums.MetricCode;
 import com.tcp.cleanmanagement.enums.TimeSource;
 import com.tcp.cleanmanagement.event.SensorDataSavedEvent;
 import com.tcp.cleanmanagement.repository.SensorRepository;
 import com.tcp.cleanmanagement.repository.SensorDataRawRepository;
 import com.tcp.cleanmanagement.repository.SensorMetricRepository;
+import com.tcp.cleanmanagement.repository.DeviceSetHistoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
@@ -30,6 +32,7 @@ public class IotDataService {
     private final SensorMetricRepository metricRepository;
     private final SensorDataRawRepository dataRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final DeviceSetHistoryRepository historyRepository;
 
     @Transactional
     public void saveSensorData(Long sensorId, SensorDataRequest request) {
@@ -38,6 +41,19 @@ public class IotDataService {
         if (request == null || request.getSampleKey() == null || request.getReadings() == null
                 || request.getReadings().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A sample key and readings are required");
+        }
+        if (sensor.getDeviceSet() != null) {
+            String mac = request.getMacAddress();
+            // Existing ESP32 sketches put their station MAC at the start of sampleKey.
+            if (mac == null && request.getSampleKey().matches("[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5}:.+")) {
+                mac = request.getSampleKey().substring(0, 17);
+            }
+            if (mac == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "ESP32 MAC address is required for this set");
+            }
+            if (!sensor.getDeviceSet().getMacAddress().equalsIgnoreCase(mac)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Sensor belongs to another ESP32 set");
+            }
         }
 
         Set<MetricCode> allowed = switch (sensor.getSensorType()) {
@@ -67,6 +83,8 @@ public class IotDataService {
         LocalDateTime measuredAt = request.getMeasuredAt() == null
                 ? receivedAt : request.getMeasuredAt().withOffsetSameInstant(ZoneOffset.UTC).toLocalDateTime();
         TimeSource timeSource = request.getMeasuredAt() == null ? TimeSource.SERVER : TimeSource.DEVICE;
+        DeviceSetHistory history = sensor.getDeviceSet() == null ? null : historyRepository
+                .findFirstByDeviceSetIdOrderByIdDesc(sensor.getDeviceSet().getId()).orElse(null);
 
         for (SensorDataRequest.Reading reading : request.getReadings()) {
             MetricCode code = reading.getMetricCode();
@@ -88,6 +106,7 @@ public class IotDataService {
 
             SensorDataRaw saved = dataRepository.save(SensorDataRaw.builder()
                     .metric(metric)
+                    .deviceSetHistory(history)
                     .sampleKey(request.getSampleKey())
                     .measuredValue(reading.getMeasuredValue())
                     .measuredAt(measuredAt)
