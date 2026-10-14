@@ -39,6 +39,12 @@ public class DeviceSetController {
         return deviceSetService.history(deviceSetId);
     }
 
+    @DeleteMapping("/api/admin/device-sets/{deviceSetId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deactivate(@PathVariable Long deviceSetId) {
+        deviceSetService.deactivate(deviceSetId);
+    }
+
     @GetMapping("/api/iot/device-sets/by-mac/{macAddress}")
     public DeviceSetResponse configuration(@PathVariable String macAddress) {
         return deviceSetService.configurationFor(macAddress);

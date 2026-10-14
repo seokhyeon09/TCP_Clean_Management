@@ -181,10 +181,25 @@ public class DeviceSetService {
                 .changedAt(LocalDateTime.now(ZoneOffset.UTC)).build());
     }
 
+    @org.springframework.beans.factory.annotation.Value("${app.device.online-threshold-seconds:30}")
+    private long onlineThresholdSeconds;
+
+    @Transactional
+    public void deactivate(Long deviceSetId) {
+        DeviceSet set = deviceSetRepository.findByIdForUpdate(deviceSetId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Device set not found"));
+        set.setActive(false);
+        set.setDeactivatedAt(LocalDateTime.now(ZoneOffset.UTC));
+        deviceSetRepository.save(set);
+    }
+
     @Transactional(readOnly = true)
     public DeviceSetResponse configurationFor(String macAddress) {
         DeviceSet set = deviceSetRepository.findByMacAddress(normalizeMac(macAddress))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Register this ESP32 MAC address first"));
+        if (!set.isActive()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "This device set is deactivated");
+        }
         return responseFor(set);
     }
 
@@ -198,10 +213,21 @@ public class DeviceSetService {
         for (Sensor sensor : sensorRepository.findByDeviceSetIdOrderByIdAsc(set.getId())) {
             ids.put(sensor.getSensorModel(), sensor.getId());
         }
+        boolean isOnline = set.getLastSeenAt() != null &&
+                set.getLastSeenAt().isAfter(LocalDateTime.now(ZoneOffset.UTC).minusSeconds(onlineThresholdSeconds));
+
         return DeviceSetResponse.builder()
-                .deviceSetId(set.getId()).setCode(set.getSetCode()).macAddress(set.getMacAddress())
-                .zoneId(set.getZone().getId()).zoneName(set.getZone().getName())
-                .installationLabel(set.getInstallationLabel()).sensorIds(ids).build();
+                .deviceSetId(set.getId())
+                .setCode(set.getSetCode())
+                .macAddress(set.getMacAddress())
+                .zoneId(set.getZone().getId())
+                .zoneName(set.getZone().getName())
+                .installationLabel(set.getInstallationLabel())
+                .active(set.isActive())
+                .lastSeenAt(set.getLastSeenAt())
+                .online(set.isActive() && isOnline)
+                .sensorIds(ids)
+                .build();
     }
 
     private String normalizeMac(String mac) {

@@ -43,6 +43,9 @@ public class IotDataService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A sample key and readings are required");
         }
         if (sensor.getDeviceSet() != null) {
+            if (!sensor.getDeviceSet().isActive()) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Device set is deactivated");
+            }
             String mac = request.getMacAddress();
             // Existing ESP32 sketches put their station MAC at the start of sampleKey.
             if (mac == null && request.getSampleKey().matches("[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5}:.+")) {
@@ -54,6 +57,7 @@ public class IotDataService {
             if (!sensor.getDeviceSet().getMacAddress().equalsIgnoreCase(mac)) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Sensor belongs to another ESP32 set");
             }
+            sensor.getDeviceSet().setLastSeenAt(LocalDateTime.now(ZoneOffset.UTC));
         }
 
         Set<MetricCode> allowed = switch (sensor.getSensorType()) {

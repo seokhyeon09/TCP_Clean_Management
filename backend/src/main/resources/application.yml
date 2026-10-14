@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/tcp_clean_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://localhost:3306/tcp_clean_db?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
     username: tcp_user
     password: tcp_password
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -17,3 +17,27 @@ spring:
       host: localhost
       port: 6379
       password: redispass
+
+server:
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+      enabled: true
+  error:
+    # Expose ResponseStatusException reasons so the dashboard can show them.
+    include-message: always
+
+app:
+  jwt:
+    # Override with the JWT_SECRET environment variable outside local demos (min. 32 bytes).
+    secret: ${JWT_SECRET:tcp-clean-management-local-demo-secret-change-me-0123456789}
+    expiration-hours: ${JWT_EXPIRATION_HOURS:12}
+  device:
+    # An ESP32 is shown as online if it sent data within this many seconds (it posts every 5 s).
+    online-threshold-seconds: ${DEVICE_ONLINE_THRESHOLD_SECONDS:30}
+  seed:
+    # Creates the demo zones and accounts on startup if they are missing. No permissions are granted.
+    enabled: ${SEED_ENABLED:true}
+    admin-password: ${SEED_ADMIN_PASSWORD:admin1234}
+    manager-password: ${SEED_MANAGER_PASSWORD:toilet1234}

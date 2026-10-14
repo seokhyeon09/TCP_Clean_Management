@@ -30,9 +30,26 @@ public class DeviceSet {
     @Column(nullable = false, length = 100)
     private String installationLabel;
 
+    /**
+     * "Deleting" a set only deactivates it so sensors, readings, alerts and history stay intact.
+     * The DEFAULT keeps rows that existed before this column was added active.
+     */
+    @Builder.Default
+    @Column(nullable = false, columnDefinition = "BOOLEAN NOT NULL DEFAULT TRUE")
+    private Boolean active = Boolean.TRUE;
+
+    private LocalDateTime deactivatedAt;
+
+    /** UTC time of the last accepted reading from this ESP32; drives the online/offline badge. */
+    private LocalDateTime lastSeenAt;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    public boolean isActive() {
+        return !Boolean.FALSE.equals(active);
+    }
 }

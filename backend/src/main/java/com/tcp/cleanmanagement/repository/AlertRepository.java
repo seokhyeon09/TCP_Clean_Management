@@ -10,6 +10,11 @@ import java.util.List;
 public interface AlertRepository extends JpaRepository<Alert, Long> {
     List<Alert> findByStatus(AlertStatus status);
 
+    List<Alert> findAllByOrderByCreatedAtDescIdDesc();
+    List<Alert> findByStatusOrderByCreatedAtDescIdDesc(AlertStatus status);
+    List<Alert> findByZoneIdInOrderByCreatedAtDescIdDesc(List<Long> zoneIds);
+    List<Alert> findByZoneIdInAndStatusOrderByCreatedAtDescIdDesc(List<Long> zoneIds, AlertStatus status);
+
     @Modifying
     @Query("UPDATE Alert a SET a.deviceSetHistory = :history " +
            "WHERE a.deviceSetHistory IS NULL AND a.zone.id = :zoneId AND a.sensor.id IN " +

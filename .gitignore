@@ -71,6 +71,7 @@ frontend/.env.production.local
 *.ino
 backups/
 /firmware/
+*PROJECT_PLAN*.md
 
 # ==========================================
 # Docker (Optional)

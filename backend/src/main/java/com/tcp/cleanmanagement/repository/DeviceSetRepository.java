@@ -15,6 +15,12 @@ public interface DeviceSetRepository extends JpaRepository<DeviceSet, Long> {
     boolean existsBySetCode(String setCode);
     List<DeviceSet> findAllByOrderByIdAsc();
 
+    @Query("SELECT ds FROM DeviceSet ds WHERE ds.active = true ORDER BY ds.id")
+    List<DeviceSet> findActiveOrderByIdAsc();
+
+    @Query("SELECT ds FROM DeviceSet ds JOIN FETCH ds.zone WHERE ds.active = true AND ds.zone.id IN :zoneIds ORDER BY ds.id")
+    List<DeviceSet> findActiveByZoneIds(@Param("zoneIds") List<Long> zoneIds);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT ds FROM DeviceSet ds WHERE ds.id = :id")
     Optional<DeviceSet> findByIdForUpdate(@Param("id") Long id);
