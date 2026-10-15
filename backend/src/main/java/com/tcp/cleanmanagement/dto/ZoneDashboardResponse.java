@@ -21,6 +21,7 @@ public class ZoneDashboardResponse {
     private Boolean hasOnlineDevice;
     private LocalDateTime lastDataReceivedAt;
     private List<DeviceSetResponse> devices;
+    private List<AiAssessment> aiAssessments;
     private Map<String, LatestMetricInfo> latestMetrics; // Keys: "TEMPERATURE", "HUMIDITY", "MQ135", "MQ7"
 
     @Data

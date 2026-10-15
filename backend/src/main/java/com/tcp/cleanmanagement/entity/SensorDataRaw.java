@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 @Table(name = "sensor_data_raw", uniqueConstraints =
         @UniqueConstraint(name = "uq_raw_metric_sample", columnNames = {"metric_id", "sample_key"}), indexes = {
         @Index(name = "ix_raw_metric_time", columnList = "metric_id,measured_at,id"),
+        @Index(name = "ix_raw_history_time", columnList = "device_set_history_id,measured_at"),
         @Index(name = "ix_raw_cleanup", columnList = "measured_at")
 })
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
@@ -31,6 +32,8 @@ public class SensorDataRaw {
 
     @Column(nullable = false, precision = 18, scale = 6)
     private BigDecimal measuredValue;
+
+    private Boolean heaterPhaseValid;
 
     @Column(nullable = false)
     private LocalDateTime measuredAt;

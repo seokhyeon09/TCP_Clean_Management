@@ -6,6 +6,7 @@ import com.tcp.cleanmanagement.entity.SensorDataRaw;
 import com.tcp.cleanmanagement.entity.SensorMetric;
 import com.tcp.cleanmanagement.entity.DeviceSetHistory;
 import com.tcp.cleanmanagement.enums.MetricCode;
+import com.tcp.cleanmanagement.enums.SensorModel;
 import com.tcp.cleanmanagement.enums.TimeSource;
 import com.tcp.cleanmanagement.event.SensorDataSavedEvent;
 import com.tcp.cleanmanagement.repository.SensorRepository;
@@ -24,6 +25,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -71,6 +73,9 @@ public class IotDataService {
                     || !seen.add(reading.getMetricCode())) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid or duplicate metric for sensor type");
             }
+            if (reading.getHeaterPhaseValid() != null && sensor.getSensorModel() != SensorModel.MQ7) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Heater phase is only valid for MQ-7");
+            }
             if (reading.getMetricCode() == MetricCode.HUMIDITY
                     && (reading.getMeasuredValue().signum() < 0
                     || reading.getMeasuredValue().compareTo(BigDecimal.valueOf(100)) > 0)) {
@@ -102,6 +107,7 @@ public class IotDataService {
             var existing = dataRepository.findByMetricIdAndSampleKey(metric.getId(), request.getSampleKey());
             if (existing.isPresent()) {
                 if (existing.get().getMeasuredValue().compareTo(reading.getMeasuredValue()) != 0
+                        || !Objects.equals(existing.get().getHeaterPhaseValid(), reading.getHeaterPhaseValid())
                         || (request.getMeasuredAt() != null && !existing.get().getMeasuredAt().equals(measuredAt))) {
                     throw new ResponseStatusException(HttpStatus.CONFLICT, "Sample key already has another value");
                 }
@@ -113,6 +119,7 @@ public class IotDataService {
                     .deviceSetHistory(history)
                     .sampleKey(request.getSampleKey())
                     .measuredValue(reading.getMeasuredValue())
+                    .heaterPhaseValid(reading.getHeaterPhaseValid())
                     .measuredAt(measuredAt)
                     .receivedAt(receivedAt)
                     .timeSource(timeSource)

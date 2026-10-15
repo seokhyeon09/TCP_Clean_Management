@@ -33,6 +33,19 @@ services:
     networks:
       - tcp-network
 
+  sensor-ai:
+    build: ./ai-service
+    container_name: tcp-sensor-ai
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8090/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    networks:
+      - tcp-network
+
   backend:
     build:
       context: ./backend
@@ -46,10 +59,14 @@ services:
       - SPRING_DATASOURCE_PASSWORD=tcp_password
       - SPRING_DATA_REDIS_HOST=redis
       - SPRING_DATA_REDIS_PASSWORD=redispass
+      - SENSOR_AI_URL=http://sensor-ai:8090
+      - SENSOR_AI_ENABLED=${SENSOR_AI_ENABLED:-true}
     depends_on:
       mysql:
         condition: service_healthy
       redis:
+        condition: service_started
+      sensor-ai:
         condition: service_started
     networks:
       - tcp-network

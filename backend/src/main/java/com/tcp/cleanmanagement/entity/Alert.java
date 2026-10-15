@@ -29,6 +29,10 @@ public class Alert {
     @Enumerated(EnumType.STRING)
     private AlertType alertType;
 
+    // Stable upstream item code, e.g. smoking_suspect / smoking_alarm.
+    @Column(length = 64)
+    private String aiCode;
+
     private String message;
 
     @Enumerated(EnumType.STRING)

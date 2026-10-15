@@ -34,5 +34,9 @@ public class SensorDataRequest {
         @NotNull
         @Digits(integer = 12, fraction = 6)
         private BigDecimal measuredValue;
+
+        // MQ-7 only: true when sampled during the readable heater phase.
+        // Missing/false values remain visible but are excluded from AI inputs.
+        private Boolean heaterPhaseValid;
     }
 }

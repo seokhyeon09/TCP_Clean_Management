@@ -6,6 +6,7 @@ import com.tcp.cleanmanagement.entity.SensorDataRaw;
 import com.tcp.cleanmanagement.entity.SensorMetric;
 import com.tcp.cleanmanagement.enums.MetricCode;
 import com.tcp.cleanmanagement.enums.SensorType;
+import com.tcp.cleanmanagement.enums.SensorModel;
 import com.tcp.cleanmanagement.enums.TimeSource;
 import com.tcp.cleanmanagement.event.SensorDataSavedEvent;
 import com.tcp.cleanmanagement.repository.SensorDataRawRepository;
@@ -102,6 +103,40 @@ class IotDataServiceTest {
 
         assertEquals(HttpStatus.BAD_REQUEST, error.getStatusCode());
         verifyNoInteractions(metricRepository, dataRepository, eventPublisher);
+    }
+
+    @Test
+    void preservesMq7HeaterQualificationAndRejectsChangedRetry() {
+        Sensor sensor = Sensor.builder().id(7L).sensorType(SensorType.GAS).sensorModel(SensorModel.MQ7).build();
+        SensorMetric metric = SensorMetric.builder().id(10L).sensor(sensor).metricCode(MetricCode.GAS).build();
+        when(sensorRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(sensor));
+        when(metricRepository.findBySensorIdAndMetricCode(7L, MetricCode.GAS)).thenReturn(Optional.of(metric));
+        when(dataRepository.save(any())).thenAnswer(call -> {
+            SensorDataRaw saved = call.getArgument(0);
+            saved.setId(1L);
+            return saved;
+        });
+        var value = reading(MetricCode.GAS, "750");
+        value.setHeaterPhaseValid(true);
+        service.saveSensorData(7L, request("qualified", null, value));
+        var saved = ArgumentCaptor.forClass(SensorDataRaw.class);
+        verify(dataRepository).save(saved.capture());
+        assertEquals(true, saved.getValue().getHeaterPhaseValid());
+        when(dataRepository.findByMetricIdAndSampleKey(10L, "qualified")).thenReturn(Optional.of(saved.getValue()));
+        value.setHeaterPhaseValid(false);
+        assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
+                () -> service.saveSensorData(7L, request("qualified", null, value))).getStatusCode());
+    }
+
+    @Test
+    void rejectsHeaterFlagOnOtherSensors() {
+        when(sensorRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(Sensor.builder().id(7L)
+                .sensorType(SensorType.GAS).sensorModel(SensorModel.MQ135).build()));
+        var value = reading(MetricCode.GAS, "1800");
+        value.setHeaterPhaseValid(true);
+        assertEquals(HttpStatus.BAD_REQUEST, assertThrows(ResponseStatusException.class,
+                () -> service.saveSensorData(7L, request("wrong-heater", null, value))).getStatusCode());
+        verifyNoInteractions(metricRepository, dataRepository);
     }
 
     private static SensorDataRequest request(String key, OffsetDateTime time, SensorDataRequest.Reading... readings) {

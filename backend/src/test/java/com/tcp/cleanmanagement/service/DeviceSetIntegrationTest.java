@@ -17,6 +17,7 @@ import com.tcp.cleanmanagement.enums.AlertType;
 import com.tcp.cleanmanagement.enums.AlertStatus;
 import com.tcp.cleanmanagement.event.SensorDataSavedEvent;
 import com.tcp.cleanmanagement.repository.AlertRepository;
+import com.tcp.cleanmanagement.repository.DeviceSetHistoryRepository;
 import jakarta.persistence.EntityManager;
 import com.tcp.cleanmanagement.repository.SensorDataRawRepository;
 import com.tcp.cleanmanagement.repository.SensorMetricRepository;
@@ -47,6 +48,8 @@ class DeviceSetIntegrationTest {
     @Autowired SensorDataRawRepository raw;
     @Autowired AlertRepository alerts;
     @Autowired AdminAlertService adminAlerts;
+    @Autowired DeviceSetHistoryRepository histories;
+    @Autowired SensorAiAlertService aiAlerts;
     @Autowired EntityManager entityManager;
 
     @Test
@@ -97,6 +100,20 @@ class DeviceSetIntegrationTest {
         SensorDataRaw latest = raw.findByMetricIdAndSampleKey(metricId, "after-move").orElseThrow();
         assertEquals(newZone.getId(), latest.getDeviceSetHistory().getZone().getId());
         assertNotEquals(originalHistoryId, latest.getDeviceSetHistory().getId());
+
+        // AI queries must not combine readings from different installations.
+        var from = originalData.getMeasuredAt().minusSeconds(1);
+        var to = latest.getMeasuredAt().plusSeconds(1);
+        var originalAiRows = raw.findAiHistory(originalHistoryId, from, to);
+        var movedAiRows = raw.findAiHistory(latest.getDeviceSetHistory().getId(), from, to);
+        assertEquals(1, originalAiRows.size());
+        assertEquals(1, movedAiRows.size());
+        assertEquals(0, originalAiRows.get(0).value().compareTo(new BigDecimal("-1")));
+        assertEquals(0, movedAiRows.get(0).value().compareTo(new BigDecimal("20")));
+        var currentHistories = histories.findCurrentActiveHistories().stream()
+                .filter(h -> h.getDeviceSet().getId().equals(moved.getDeviceSetId())).toList();
+        assertEquals(1, currentHistories.size());
+        assertEquals(latest.getDeviceSetHistory().getId(), currentHistories.get(0).getId());
 
         // Simulate delayed async analysis of a reading accepted before the move.
         new AnalyticsService(raw, alerts).handleSensorDataSaved(new SensorDataSavedEvent(originalDataId));
@@ -232,6 +249,33 @@ class DeviceSetIntegrationTest {
         ResponseStatusException conflict = assertThrows(ResponseStatusException.class, () -> sets.register(second));
         assertEquals(HttpStatus.CONFLICT, conflict.getStatusCode());
         assertEquals(first.getSensorIds(), sets.configurationFor(first.getMacAddress()).getSensorIds());
+    }
+
+    @Test
+    void aiAlertsPersistItemIdentityAndQualifiedMq7Metadata() {
+        var device = sets.register(registration(zone(), "ai-test"));
+        var packet = packet(device.getMacAddress(), "qualified-co", "750");
+        packet.getReadings().get(0).setHeaterPhaseValid(true);
+        Long sensorId = device.getSensorIds().get(SensorModel.MQ7);
+        ingestion.saveSensorData(sensorId, packet);
+        entityManager.flush();
+        entityManager.clear();
+        var metric = metrics.findBySensorIdAndMetricCode(sensorId, MetricCode.GAS).orElseThrow();
+        var data = raw.findByMetricIdAndSampleKey(metric.getId(), "qualified-co").orElseThrow();
+        assertEquals(true, data.getHeaterPhaseValid());
+        var history = data.getDeviceSetHistory();
+        var result = Map.<String, Object>of("ready", true, "level", "긴급", "items",
+                java.util.List.of(Map.of("level", "긴급", "code", "smoking_alarm", "message", "흡연 경보")));
+        aiAlerts.record(history, result);
+        aiAlerts.record(history, result);
+        var found = alerts.findByStatus(AlertStatus.UNRESOLVED).stream()
+                .filter(a -> a.getDeviceSetHistory() != null
+                        && a.getDeviceSetHistory().getId().equals(history.getId())).toList();
+        assertEquals(1, found.size());
+        assertEquals("smoking_alarm", found.get(0).getAiCode());
+        assertEquals(AlertType.AI_ANOMALY, found.get(0).getAlertType());
+        assertTrue(alerts.hasActiveOrRecentAiAlert(history.getId(), "smoking_alarm", data.getMeasuredAt().minusMinutes(30)));
+        assertFalse(alerts.hasActiveOrRecentAiAlert(history.getId(), "leak", data.getMeasuredAt().minusMinutes(30)));
     }
 
     private Zone zone() {

@@ -34,6 +34,7 @@ public class ZoneDashboardService {
     private final SensorMetricRepository sensorMetricRepository;
     private final SensorDataRawRepository rawRepository;
     private final SensorRepository sensorRepository;
+    private final SensorAiService sensorAiService;
 
     @Value("${app.device.online-threshold-seconds:30}")
     private long onlineThresholdSeconds;
@@ -216,6 +217,7 @@ public class ZoneDashboardService {
                 .hasOnlineDevice(hasOnlineDevice)
                 .lastDataReceivedAt(lastDataReceivedAt)
                 .devices(deviceResponses)
+                .aiAssessments(sensorAiService.getAssessments(sets))
                 .latestMetrics(latestMetrics)
                 .build();
     }

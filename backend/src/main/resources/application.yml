@@ -1,4 +1,8 @@
 spring:
+  task:
+    scheduling:
+      pool:
+        size: 2
   datasource:
     url: jdbc:mysql://localhost:3306/tcp_clean_db?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
     username: tcp_user
@@ -29,6 +33,11 @@ server:
     include-message: always
 
 app:
+  sensor-ai:
+    enabled: ${SENSOR_AI_ENABLED:true}
+    url: ${SENSOR_AI_URL:http://localhost:8090}
+    timeout-ms: ${SENSOR_AI_TIMEOUT_MS:10000}
+    poll-interval-ms: ${SENSOR_AI_POLL_INTERVAL_MS:15000}
   jwt:
     # Override with the JWT_SECRET environment variable outside local demos (min. 32 bytes).
     secret: ${JWT_SECRET:tcp-clean-management-local-demo-secret-change-me-0123456789}

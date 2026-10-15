@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { dashboardApi, authApi, alertApi } from '../api';
 import { formatToKst, formatMetricValue } from '../utils/format';
+import AiAssessmentPanel from '../components/AiAssessmentPanel';
 import {
   Thermometer,
   Droplets,
@@ -252,7 +253,7 @@ export default function ZoneDashboard({ initialZoneId }) {
             {alerts.map((a) => (
               <div key={a.alertId} className="pt-2 flex items-center justify-between text-xs">
                 <div>
-                  <span className="font-bold text-rose-900">[{a.alertType}]</span>{' '}
+                  <span className="font-bold text-rose-900">[{a.alertType === 'AI_ANOMALY' ? 'AI 이상 징후' : a.alertType}]</span>{' '}
                   <span className="text-rose-700">{a.message}</span>
                   <span className="text-[10px] text-rose-400 ml-2">
                     {formatToKst(a.createdAt, false)}
@@ -295,7 +296,7 @@ export default function ZoneDashboard({ initialZoneId }) {
         {/* Comfort Score Card */}
         <div className="bg-gradient-to-br from-white to-slate-50 p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
           <div>
-            <div className="text-xs font-bold text-slate-500 uppercase">종합 쾌적 지수</div>
+            <div className="text-xs font-bold text-slate-500 uppercase">기준값 기반 쾌적 지수</div>
             <div className="mt-2 flex items-baseline space-x-2">
               <span className="text-4xl font-black text-slate-900">
                 {comfortScore !== null && comfortScore !== undefined ? comfortScore : '-'}
@@ -402,6 +403,8 @@ export default function ZoneDashboard({ initialZoneId }) {
       </div>
 
       {/* Time Series Chart */}
+      <AiAssessmentPanel assessments={dashboardData?.aiAssessments || []} />
+
       <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b border-slate-100">
           <div>

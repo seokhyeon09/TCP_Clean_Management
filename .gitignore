@@ -79,3 +79,9 @@ backups/
 # If you ever decide to map DB data locally, ignore it
 mysql-data/
 redis-data/
+
+# Sensor AI local validation and Python caches
+ai-service/**/__pycache__/
+ai-service/.venv/
+.artifacts/
+

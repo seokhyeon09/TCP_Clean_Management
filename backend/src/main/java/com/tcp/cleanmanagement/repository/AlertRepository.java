@@ -7,7 +7,14 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.util.List;
+import java.time.LocalDateTime;
 public interface AlertRepository extends JpaRepository<Alert, Long> {
+    @Query("SELECT (COUNT(a) > 0) FROM Alert a WHERE a.deviceSetHistory.id = :historyId " +
+           "AND a.alertType = com.tcp.cleanmanagement.enums.AlertType.AI_ANOMALY " +
+           "AND a.aiCode = :code " +
+           "AND (a.status = com.tcp.cleanmanagement.enums.AlertStatus.UNRESOLVED OR a.createdAt >= :since)")
+    boolean hasActiveOrRecentAiAlert(@Param("historyId") Long historyId, @Param("code") String code,
+                                    @Param("since") LocalDateTime since);
     List<Alert> findByStatus(AlertStatus status);
 
     List<Alert> findAllByOrderByCreatedAtDescIdDesc();

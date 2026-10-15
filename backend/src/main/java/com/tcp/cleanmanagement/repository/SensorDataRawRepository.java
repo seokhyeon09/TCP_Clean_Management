@@ -15,6 +15,14 @@ import java.util.Optional;
 public interface SensorDataRawRepository extends JpaRepository<SensorDataRaw, Long> {
     Optional<SensorDataRaw> findByMetricIdAndSampleKey(Long metricId, String sampleKey);
 
+    // Installation identity prevents histories from different rooms being combined.
+    @Query("SELECT new com.tcp.cleanmanagement.repository.AiRawPoint(" +
+           "d.metric.sensor.sensorModel, d.metric.metricCode, d.measuredAt, d.measuredValue, d.heaterPhaseValid) " +
+           "FROM SensorDataRaw d WHERE d.deviceSetHistory.id = :historyId " +
+           "AND d.measuredAt >= :from AND d.measuredAt < :to ORDER BY d.measuredAt, d.id")
+    List<AiRawPoint> findAiHistory(@Param("historyId") Long historyId,
+                                 @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
     /**
      * Raw readings for the given metrics in [from, to). Readings captured while the set was installed
      * in another zone are excluded; legacy readings without a history row are kept.

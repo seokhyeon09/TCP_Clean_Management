@@ -1,0 +1,21 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:tcp-test;MODE=MySQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+app:
+  jwt:
+    secret: tcp-clean-management-test-secret-0123456789abcdef
+    expiration-hours: 12
+  seed:
+    enabled: false
+  sensor-ai:
+    enabled: false
