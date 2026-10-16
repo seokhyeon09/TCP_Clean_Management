@@ -69,6 +69,7 @@ frontend/.env.production.local
 
 # Local ESP32 sketches may contain Wi-Fi credentials
 *.ino
+!esp32_dht22_mq7/**
 backups/
 /firmware/
 *PROJECT_PLAN*.md
